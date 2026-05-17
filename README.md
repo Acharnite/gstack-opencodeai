@@ -1,11 +1,9 @@
 # gstack-opencodeai
 
-> **⚠️ WIP — Work in progress.** This is a fork of [garrytan/gstack](https://github.com/garrytan/gstack) with experimental opencode support. Things may break. Use at your own risk.
-
-gstack-opencodeai is a fork of [gstack](https://github.com/garrytan/gstack) that adds native support for [opencode](https://opencode.ai). It turns AI coding agents into a virtual engineering team — a CEO who rethinks the product, an eng manager who locks architecture, a designer who catches AI slop, a reviewer who finds production bugs, a QA lead who opens a real browser, and more.
+gstack-opencodeai turns AI coding agents into a virtual engineering team — a CEO who rethinks the product, an eng manager who locks architecture, a designer who catches AI slop, a reviewer who finds production bugs, a QA lead who opens a real browser, and more.
 
 **Who this is for:**
-- **opencode users** — use gstack skills without running Claude Code
+- **opencode users** — run gstack skills without Claude Code
 - **Anyone who wants structured AI workflows** — not a blank prompt, but a full engineering sprint
 
 ## Quick start
@@ -19,37 +17,25 @@ gstack-opencodeai is a fork of [gstack](https://github.com/garrytan/gstack) that
 
 ## Install — 30 seconds
 
-**Requirements:** [opencode](https://opencode.ai) (or [Claude Code](https://docs.anthropic.com/en/docs/claude-code)), [Git](https://git-scm.com/), [Bun](https://bun.sh/) v1.0+, [Node.js](https://nodejs.org/) (Windows only)
-
-### OpenCode (recommended)
+**Requirements:** [opencode](https://opencode.ai), [Git](https://git-scm.com/), [Bun](https://bun.sh/) v1.0+, [Node.js](https://nodejs.org/) (Windows only)
 
 ```bash
 git clone --single-branch --depth 1 https://github.com/Acharnite/gstack-opencodeai.git ~/.config/opencode/skills/gstack && cd ~/.config/opencode/skills/gstack && ./setup --host opencode
 ```
 
-Copy `opencode.json.example` to `opencode.json` and adjust paths to match your environment:
+Copy `opencode.json.example` to `opencode.json` and adjust paths:
 
 ```bash
 cp opencode.json.example opencode.json
 ```
 
-### Claude Code
-
-```bash
-git clone --single-branch --depth 1 https://github.com/Acharnite/gstack-opencodeai.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup
-```
-
-Then add a gstack section to your project's CLAUDE.md that says to use the `/browse` skill for all web browsing and lists the available skills.
-
 ### Team mode — auto-update for shared repos (recommended)
-
-From inside your repo:
 
 ```bash
 (cd ~/.config/opencode/skills/gstack && ./setup --team --host opencode) && ~/.config/opencode/skills/gstack/bin/gstack-team-init optional && git add .claude/ CLAUDE.md && git commit -m "require gstack for AI-assisted work"
 ```
 
-Swap `required` for `optional` if you'd rather nudge teammates than block them.
+Swap `optional` for `required` to block teammates without gstack from working in the repo.
 
 ### Other AI Agents
 
@@ -64,32 +50,11 @@ gstack-opencodeai works on 10 AI coding agents. Target a specific agent with `./
 | Slate | `--host slate` | `~/.slate/skills/gstack-*/` |
 | Kiro | `--host kiro` | `~/.kiro/skills/gstack-*/` |
 | Hermes | `--host hermes` | `~/.hermes/skills/gstack-*/` |
-| Claude Code | `--host claude` | `~/.claude/skills/gstack-*/` |
+| OpenClaw | `--host openclaw` | `~/.openclaw/skills/gstack-*/` |
 | GBrain (mod) | `--host gbrain` | `~/.gbrain/skills/gstack-*/` |
 
 **Want to add support for another agent?** See [docs/ADDING_A_HOST.md](docs/ADDING_A_HOST.md).
 It's one TypeScript config file, zero code changes.
-
-## What's different from gstack
-
-This fork adds:
-
-- **opencode host support** — gbrain MCP detection via `opencode.json`/`opencode.jsonc` fallback chain
-- **opencode session discovery** — `gstack-global-discover` now scans `~/.config/opencode/projects/`
-- **opencode uninstall** — `gstack-uninstall` cleans up `~/.config/opencode/skills/` and `.opencode/skills/`
-- **Vendoring detection** — preamble checks `.opencode/skills/gstack` alongside `.claude/skills/gstack`
-- **All golden tests pass** — tested against opencode, codex, factory, claude, and 6 other hosts
-
-The upstream original at `garrytan/gstack` is maintained separately. To merge upstream changes:
-
-```bash
-git fetch upstream
-git merge upstream/main
-# resolve conflicts in .tmpl templates, NOT generated SKILL.md
-bun run gen:skill-docs
-bun test
-git push
-```
 
 ## The sprint
 
@@ -147,24 +112,21 @@ Each skill feeds into the next. `/office-hours` writes a design doc that `/plan-
 | `/open-gstack-browser` | **GStack Browser** — launch GStack Browser with sidebar. |
 | `/learn` | **Memory** — manage what gstack learned across sessions. |
 
-## Differences from upstream
+### Merging upstream changes
 
-This fork is based on gstack [v1.34.1.0](https://github.com/garrytan/gstack/releases/tag/v1.34.1.0) with the following additions:
+gstack-opencodeai is based on [garrytan/gstack](https://github.com/garrytan/gstack). To merge upstream changes:
 
-- opencode host support in all skill preambles
-- `bin/gstack-gbrain-detect` Tier 4: opencode.json/opencode.jsonc fallback
-- `bin/gstack-global-discover.ts` `scanOpenCode()` function
-- `bin/gstack-uninstall` opencode cleanup sections
-- `bin/gstack-team-init` opencode install instructions
-- `bin/gstack-extension` opencode extension path fallback
-- `bin/gstack-paths` OPENCODE_PLANS_DIR support
-- All golden files regenerated for all 10 hosts
-- `opencode.json.example` template file
-- `gstack-plugin-opencode` — opencode hooks plugin (permission.ask, command.execute.before, event)
+```bash
+git remote add upstream https://github.com/garrytan/gstack.git
+git fetch upstream
+git merge upstream/main
+# resolve conflicts in .tmpl templates, NOT generated SKILL.md
+bun run gen:skill-docs
+bun test
+git push
+```
 
 ## Uninstall
-
-### Option 1: Run the uninstall script
 
 ```bash
 ~/.config/opencode/skills/gstack/bin/gstack-uninstall
@@ -172,7 +134,7 @@ This fork is based on gstack [v1.34.1.0](https://github.com/garrytan/gstack/rele
 
 This handles skills, symlinks, global state (`~/.gstack/`), project-local state, browse daemons, and temp files. Use `--keep-state` to preserve config and analytics. Use `--force` to skip confirmation.
 
-### Option 2: Manual removal
+### Manual removal
 
 ```bash
 # Stop browse daemons
@@ -180,9 +142,9 @@ pkill -f "gstack.*browse" 2>/dev/null || true
 
 # Remove gstack installations
 rm -rf ~/.config/opencode/skills/gstack
-rm -rf ~/.claude/skills/gstack
 rm -rf ~/.codex/skills/gstack*
 rm -rf ~/.factory/skills/gstack*
+rm -rf ~/.cursor/skills/gstack*
 rm -rf ~/.kiro/skills/gstack*
 rm -rf ~/.openclaw/skills/gstack*
 
@@ -193,16 +155,17 @@ rm -rf ~/.gstack
 rm -f /tmp/gstack-* 2>/dev/null
 
 # Per-project cleanup (run from each project root)
-rm -rf .gstack .gstack-worktrees .claude/skills/gstack .opencode/skills/gstack 2>/dev/null
+rm -rf .gstack .gstack-worktrees .opencode/skills/gstack 2>/dev/null
 rm -rf .agents/skills/gstack* .factory/skills/gstack* 2>/dev/null
 
-### Clean up CLAUDE.md
+# Clean up AGENTS.md
+```
 
-The uninstall script does not edit CLAUDE.md. In each project where gstack was added, remove the `## gstack` and `## Skill routing` sections.
+The uninstall script does not edit AGENTS.md. In each project where gstack was added, remove the `## gstack` and `## Skill routing` sections.
 
 ### Playwright
 
-`~/Library/Caches/ms-playwright/` (macOS) is left in place because other tools may share it. Remove it if nothing else needs it.
+`~/Library/Caches/ms-playwright/` (macOS) / `~/.cache/ms-playwright/` (Linux) is left in place because other tools may share it. Remove it if nothing else needs it.
 
 ## License
 
