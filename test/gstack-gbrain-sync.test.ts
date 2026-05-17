@@ -815,10 +815,12 @@ describe("sourceLocalPath", () => {
   it("returns local_path when the source exists", () => {
     makeShim(bindir, {
       "sources list --json": {
-        stdout: JSON.stringify([
-          { id: "other-source", local_path: "/x" },
-          { id: "target-id", local_path: "/repo/match" },
-        ]),
+        stdout: JSON.stringify({
+          sources: [
+            { id: "other-source", local_path: "/x" },
+            { id: "target-id", local_path: "/repo/match" },
+          ],
+        }),
       },
     });
     expect(sourceLocalPath("target-id", envWithBindir(bindir))).toBe("/repo/match");
@@ -826,7 +828,7 @@ describe("sourceLocalPath", () => {
 
   it("returns null when the source is missing", () => {
     makeShim(bindir, {
-      "sources list --json": { stdout: "[]" },
+      "sources list --json": { stdout: JSON.stringify({ sources: [] }) },
     });
     expect(sourceLocalPath("missing-id", envWithBindir(bindir))).toBeNull();
   });
