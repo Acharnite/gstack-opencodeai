@@ -1,6 +1,6 @@
 {
   "name": "gstack-opencodeai",
-  "version": "1.39.3.0",
+  "version": "1.40.0.0",
   "description": "Fork of gstack with opencode compatibility — multi-platform AI engineering skills + headless browser.",
   "license": "MIT",
   "type": "module",

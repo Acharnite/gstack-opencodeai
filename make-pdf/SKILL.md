@@ -93,13 +93,9 @@ if [ -d ".opencode/skills/gstack" ] && [ ! -L ".opencode/skills/gstack" ]; then
     _VENDORED="yes"
   fi
 fi
-if [ "$_VENDORED" = "no" ] && [ -d ".claude/skills/gstack" ] && [ ! -L ".claude/skills/gstack" ]; then
-  if [ -f ".claude/skills/gstack/VERSION" ] || [ -d ".claude/skills/gstack/.git" ]; then
-    _VENDORED="yes"
-  fi
-fi
+# No .claude/skills/gstack vendored check — opencode only
 echo "VENDORED_GSTACK: $_VENDORED"
-echo "MODEL_OVERLAY: claude"
+echo "MODEL_OVERLAY: none"
 _CHECKPOINT_MODE=$(~/.claude/skills/gstack/bin/gstack-config get checkpoint_mode 2>/dev/null || echo "explicit")
 _CHECKPOINT_PUSH=$(~/.claude/skills/gstack/bin/gstack-config get checkpoint_push 2>/dev/null || echo "false")
 echo "CHECKPOINT_MODE: $_CHECKPOINT_MODE"
@@ -359,8 +355,7 @@ _BRAIN_SYNC_MODE=$("$_BRAIN_CONFIG_BIN" get artifacts_sync_mode 2>/dev/null || e
 # Detect remote-MCP mode (Path 4 of /setup-gbrain). Local artifacts sync is
 # a no-op in remote mode; the brain server pulls from GitHub/GitLab on its
 # own cadence.
-# First check opencode config (project-level opencode.json or global opencode.jsonc)
-# so the current host is checked first, then fall back to Claude Code.
+# Check opencode config (project-level opencode.json or global opencode.jsonc)
 _GBRAIN_MCP_MODE="none"
 if command -v jq >/dev/null 2>&1; then
   # Check opencode config first (current host)
@@ -372,14 +367,7 @@ if command -v jq >/dev/null 2>&1; then
       remote|http) _GBRAIN_MCP_MODE="remote-http"; break ;;
     esac
   done
-  # Fall back to Claude Code's config (~/.claude.json)
-  if [ "$_GBRAIN_MCP_MODE" = "none" ] && [ -f "$HOME/.claude.json" ]; then
-    _GBRAIN_MCP_TYPE=$(jq -r '.mcpServers.gbrain.type // .mcpServers.gbrain.transport // empty' "$HOME/.claude.json" 2>/dev/null)
-    case "$_GBRAIN_MCP_TYPE" in
-      url|http|sse) _GBRAIN_MCP_MODE="remote-http" ;;
-      stdio) _GBRAIN_MCP_MODE="local-stdio" ;;
-    esac
-  fi
+  # No Claude Code fallback — opencode only
 fi
 
 if [ -f "$_BRAIN_REMOTE_FILE" ] && [ ! -d "$_GSTACK_HOME/.git" ] && [ "$_BRAIN_SYNC_MODE" = "off" ]; then
@@ -409,7 +397,7 @@ fi
 if [ "$_GBRAIN_MCP_MODE" = "remote-http" ]; then
   # Remote-MCP mode: local artifacts sync is a no-op (brain admin's server
   # pulls from GitHub/GitLab). Show the user this is by design, not broken.
-  _GBRAIN_HOST=$(jq -r '.mcp.gbrain.url // empty' "${_REPO_TOP:-$(pwd)}/opencode.json" 2>/dev/null || jq -r '.mcpServers.gbrain.url // empty' "$HOME/.claude.json" 2>/dev/null || echo "" | sed -E 's|^https?://([^/:]+).*|\1|')
+  _GBRAIN_HOST=$(jq -r '.mcp.gbrain.url // empty' "${_REPO_TOP:-$(pwd)}/opencode.json" 2>/dev/null || echo "" | sed -E 's|^https?://([^/:]+).*|\1|')
   echo "ARTIFACTS_SYNC: remote-mode (managed by brain server ${_GBRAIN_HOST:-remote})"
 elif [ -d "$_GSTACK_HOME/.git" ] && [ "$_BRAIN_SYNC_MODE" != "off" ]; then
   _BRAIN_QUEUE_DEPTH=0
@@ -450,24 +438,6 @@ At skill END before telemetry:
 "~/.claude/skills/gstack/bin/gstack-brain-sync" --once 2>/dev/null || true
 ```
 
-
-## Model-Specific Behavioral Patch (claude)
-
-The following nudges are tuned for the claude model family. They are
-**subordinate** to skill workflow, STOP points, AskUserQuestion gates, plan-mode
-safety, and /ship review gates. If a nudge below conflicts with skill instructions,
-the skill wins. Treat these as preferences, not rules.
-
-**Todo-list discipline.** When working through a multi-step plan, mark each task
-complete individually as you finish it. Do not batch-complete at the end. If a task
-turns out to be unnecessary, mark it skipped with a one-line reason.
-
-**Think before heavy actions.** For complex operations (refactors, migrations,
-non-trivial new features), briefly state your approach before executing. This lets
-the user course-correct cheaply instead of mid-flight.
-
-**Dedicated tools over Bash.** Prefer Read, Edit, Write, Glob, Grep over shell
-equivalents (cat, sed, find, grep). The dedicated tools are cheaper and clearer.
 
 ## Voice
 
