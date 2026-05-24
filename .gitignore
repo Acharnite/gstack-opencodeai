@@ -39,3 +39,6 @@ supabase/.temp/
 docs/throughput-*.json
 .gbrain-source
 .memelord/
+.codex/
+.opencode/plans/
+skills-lock.json
