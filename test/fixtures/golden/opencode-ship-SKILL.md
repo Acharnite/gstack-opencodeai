@@ -345,7 +345,6 @@ Before calling AskUserQuestion, verify:
 - [ ] You are calling the tool, not writing prose
 - [ ] Non-ASCII characters (CJK / accents) written directly, NOT \u-escaped
 
-
 ## Artifacts Sync (skill start)
 
 ```bash
@@ -448,8 +447,6 @@ else
 fi
 ```
 
-
-
 Privacy stop-gate: if output shows `ARTIFACTS_SYNC: off`, `artifacts_sync_mode_prompted` is `false`, and gbrain is on PATH or `gbrain doctor --fast --json` works, ask once:
 
 > gstack can publish your artifacts (CEO plans, designs, reports) to a private GitHub repo that GBrain indexes across machines. How much should sync?
@@ -475,7 +472,6 @@ At skill END before telemetry:
 "$GSTACK_BIN/gstack-brain-sync" --discover-new 2>/dev/null || true
 "$GSTACK_BIN/gstack-brain-sync" --once 2>/dev/null || true
 ```
-
 
 ## Voice
 
@@ -615,7 +611,6 @@ Jargon list, gloss on first use if the term appears:
 - null pointer
 - dangling pointer
 - buffer overflow
-
 
 ## Completeness Principle — Boil the Lake
 

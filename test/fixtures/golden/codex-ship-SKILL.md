@@ -345,7 +345,6 @@ Before calling AskUserQuestion, verify:
 - [ ] You are calling the tool, not writing prose
 - [ ] Non-ASCII characters (CJK / accents) written directly, NOT \u-escaped
 
-
 ## Artifacts Sync (skill start)
 
 ```bash
@@ -448,8 +447,6 @@ else
 fi
 ```
 
-
-
 Privacy stop-gate: if output shows `ARTIFACTS_SYNC: off`, `artifacts_sync_mode_prompted` is `false`, and gbrain is on PATH or `gbrain doctor --fast --json` works, ask once:
 
 > gstack can publish your artifacts (CEO plans, designs, reports) to a private GitHub repo that GBrain indexes across machines. How much should sync?
@@ -475,7 +472,6 @@ At skill END before telemetry:
 "$GSTACK_BIN/gstack-brain-sync" --discover-new 2>/dev/null || true
 "$GSTACK_BIN/gstack-brain-sync" --once 2>/dev/null || true
 ```
-
 
 ## Voice
 
@@ -615,7 +611,6 @@ Jargon list, gloss on first use if the term appears:
 - null pointer
 - dangling pointer
 - buffer overflow
-
 
 ## Completeness Principle — Boil the Lake
 
@@ -787,8 +782,6 @@ Print the detected base branch name. In every subsequent `git diff`, `git log`,
 branch name wherever the instructions say "the base branch" or `<default>`.
 
 ---
-
-
 
 # Ship: Fully Automated Ship Workflow
 
@@ -1918,8 +1911,6 @@ Substitute: TIMESTAMP = ISO 8601 datetime, STATUS = "clean" if 0 findings or "is
 
    Include any design findings alongside the code review findings. They follow the same Fix-First flow below.
 
-
-
 ### Step 9.3: Cross-review finding dedup
 
 Before classifying findings, check if any were previously skipped by the user in a prior review on this branch.
@@ -2038,8 +2029,6 @@ For each comment in `comments`:
 
 ---
 
-
-
 ## Capture Learnings
 
 If you discovered a non-obvious pattern, pitfall, or architectural insight during
@@ -2064,8 +2053,6 @@ staleness detection: if those files are later deleted, the learning can be flagg
 
 **Only log genuine discoveries.** Don't log obvious things. Don't log things the user
 already knows. A good test: would this insight save time in a future session? If yes, log it.
-
-
 
 ### Refresh learnings for the headline feature on this branch
 
