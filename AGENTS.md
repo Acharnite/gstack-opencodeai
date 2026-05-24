@@ -63,8 +63,6 @@ Skills live in `.agents/skills/` (or `~/.config/opencode/skills/gstack/` on open
 | `/benchmark` | Performance regression detection (page load, Core Web Vitals). |
 | `/benchmark-models` | Cross-model benchmark for skills (Claude, GPT, Gemini side-by-side). |
 | `/cso` | OWASP Top 10 + STRIDE security audit. |
-| `/setup-gbrain` | Set up gbrain for cross-machine session memory sync. |
-| `/sync-gbrain` | Keep gbrain current with this repo's code; refresh agent search guidance in CLAUDE.md. |
 
 ### Plugin (opencode only)
 
@@ -120,70 +118,44 @@ bun run skill:check      # health dashboard for all skills
 - State paths resolve via `bin/gstack-paths` (sourced via `eval "$(...)"`). Honors `GSTACK_HOME`, `CLAUDE_PLUGIN_DATA`, `CLAUDE_PLANS_DIR`.
 - The `claude` CLI binary resolves via `browse/src/claude-bin.ts` (`Bun.which()` + `GSTACK_CLAUDE_BIN` override). Set `GSTACK_CLAUDE_BIN=wsl` plus `GSTACK_CLAUDE_BIN_ARGS='["claude"]'` to run Claude through WSL on Windows.
 
-## gbrain integration
+## ICM integration
 
-gbrain v0.34.4.0 is installed and configured with PGLite. It provides:
+ICM (Infinite Context Memory) v0.10.50 is installed at `~/.cargo/bin/icm`.
 
-- **Semantic search**: `gbrain search <query>` — keyword search over all indexed code/docs
-- **Cross-session memory**: `gbrain put <slug>` / `gbrain get <slug>` — persist and retrieve knowledge
-- **Hybrid query**: `gbrain query <question>` — RRF search with embeddings (requires OPENAI_API_KEY)
-- **Code awareness**: `gbrain reindex-code` / `gbrain sync --strategy code` for code files
-- **Symbol lookup**: `gbrain code-def <symbol>`, `gbrain code-refs <symbol>`, `gbrain code-callers <symbol>`
+gstack uses a **dedicated ICM database** at `~/.gstack/icm/memories.db`, referenced
+via the `$GSTACK_ICM_DB` env var (set automatically by every skill's preamble).
+Personal memories stay in `~/.local/share/icm/memories.db` — the two are fully isolated.
 
-The gstack repo (125 pages, 3214 chunks) is imported and embedded via a
-worktree-pinned code source (`.gbrain-source` at repo root — auto-routes
-all `gbrain` CLI calls from this worktree). Use `gbrain search` instead of
-Grep for semantic questions. Run `/sync-gbrain` to refresh. OpenAI API key
-is stored in `~/.gbrain/config.json`.
+Every `icm` command must include `--db "$GSTACK_ICM_DB"` to target the gstack database.
 
-gbrain binary is at `~/.bun/bin/gbrain` — add `~/.bun/bin` to PATH if not already set.
+The `icm` binary at `~/.cargo/bin/icm` is a wrapper around `icm.real`. It enforces
+the colon topic naming convention by rewriting `store -t context-*` → `context:*`.
 
 ### Session start — mandatory
 
-**At the start of EVERY session** (before answering the user's first question), search gbrain for relevant context:
+**At the start of EVERY session** (before answering the user's first question), recall
+ICM context for the current project:
 
-1. Search for the current project slug and use it: `gbrain search "$(git remote get-url origin 2>/dev/null | sed 's/.*[/:]//; s/\.git$//; s/\//-/')" --limit 10` (fallback: `gbrain search "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")" --limit 10`)
-2. Search for recent session context: `gbrain search "session context checkpoint" --limit 10`
-3. Search for the user's identity/profile: `gbrain search "user profile $USER" --limit 5`
-4. Read the most relevant page(s) found to understand past work, decisions, and state.
+1. **Recall project context**: `icm --db "$GSTACK_ICM_DB" recall-project --limit 5`
+2. **Read the wake-up pack**: `icm --db "$GSTACK_ICM_DB" wake-up --project "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")"`
 
-This runs every session to provide continuity. If gbrain returns nothing, proceed without context.
+This runs every session to provide continuity. If ICM returns nothing, proceed without context.
 
-## Skill routing (synced from CLAUDE.md)
+### During the session
 
-When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
+**Topic naming convention** — use colon-separated `<domain>:<project>` topics:
 
-Key routing rules:
-- Product ideas/brainstorming → invoke /office-hours
-- Strategy/scope → invoke /plan-ceo-review
-- Architecture → invoke /plan-eng-review
-- Design system/plan review → invoke /design-consultation or /plan-design-review
-- Full review pipeline → invoke /autoplan
-- Bugs/errors → invoke /investigate
-- QA/testing site behavior → invoke /qa or /qa-only
-- Code review/diff check → invoke /review
-- Visual polish → invoke /design-review
-- Ship/deploy/PR → invoke /ship or /land-and-deploy
-- Save progress → invoke /context-save
-- Resume context → invoke /context-restore
+| Domain | Purpose | Example |
+|--------|---------|---------|
+| `context` | Session summaries, continuity | `context:gstack` |
+| `arch` | Architecture decisions, trade-offs | `arch:gstack` |
+| `bug` | Bug postmortems, root causes, fixes | `bug:streaming-timeout` |
+| `pattern` | Reusable coding patterns | `pattern:react-testing` |
+| `state` | Current WIP, blockers, next steps | `state:gstack` |
+| `learn` | Cross-cutting learnings, gotchas | `learn:icm` |
+| `guide` | How-to knowledge for tools/configs | `guide:deploy` |
 
-## Deploy Configuration (synced from CLAUDE.md)
-
-- Platform: GitHub-only — no server deploy
-- Production URL: none (CLI tool, installed via git/setup)
-- Deploy workflow: `.github/workflows/evals.yml` (CI)
-- Deploy status command: GitHub Actions — check CI status on PR
-- Merge method: squash
-- Project type: CLI
-- Post-deploy health check: none — CI passing is the gate
-
-## Preamble note — opencode host detection
-
-gstack's skill preambles now detect opencode alongside Claude Code for gbrain
-MCP configuration. The fallback chain is:
-1. `~/.claude.json` (Claude Code MCP config)
-2. Project-level `opencode.json` 
-3. Global `~/.config/opencode/opencode.jsonc`
-
-This was added in the opencode migration patch; all SKILL.md files have been
-regenerated to include this fallback.
+- **Save context**: `icm --db "$GSTACK_ICM_DB" save-project "<brief summary>" -i medium`
+- **Store decisions**: `icm --db "$GSTACK_ICM_DB" store -t "<domain>:<project>" -c "<key finding>"` (use `arch:` for decisions, `bug:` for fixes, `learn:` for gotchas)
+- **Search**: `icm --db "$GSTACK_ICM_DB" recall <query>` or `icm --db "$GSTACK_ICM_DB" recall-project --limit 5`
+- **WIP state**: `icm --db "$GSTACK_ICM_DB" store -t "state:<project>" -c "WIP: <what> | next: <what> | block: <what>"`

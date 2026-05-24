@@ -19,7 +19,7 @@ import { generateInvokeSkill } from './composition';
 import { generateReviewArmy } from './review-army';
 import { generateDxFramework } from './dx';
 import { generateModelOverlay } from './model-overlay';
-import { generateGBrainContextLoad, generateGBrainSaveResults } from './gbrain';
+import { generateICMContextLoad, generateICMSaveResults } from './icm';
 import { generateQuestionPreferenceCheck, generateQuestionLog, generateInlineTuneFeedback } from './question-tuning';
 import { generateMakePdfSetup } from './make-pdf';
 import { generateTasksSectionEmit, generateTasksSectionAggregate } from './tasks-section';
@@ -73,8 +73,8 @@ export const RESOLVERS: Record<string, ResolverFn> = {
   MODEL_OVERLAY: generateModelOverlay,
   TASTE_PROFILE: generateTasteProfile,
   BIN_DIR: (ctx) => ctx.paths.binDir,
-  GBRAIN_CONTEXT_LOAD: generateGBrainContextLoad,
-  GBRAIN_SAVE_RESULTS: generateGBrainSaveResults,
+  GBRAIN_CONTEXT_LOAD: generateICMContextLoad,
+  GBRAIN_SAVE_RESULTS: generateICMSaveResults,
   QUESTION_PREFERENCE_CHECK: generateQuestionPreferenceCheck,
   QUESTION_LOG: generateQuestionLog,
   INLINE_TUNE_FEEDBACK: generateInlineTuneFeedback,

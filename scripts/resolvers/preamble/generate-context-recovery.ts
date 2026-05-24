@@ -25,14 +25,17 @@ if [ -d "$_PROJ" ]; then
   [ -n "$_LATEST_CP" ] && echo "LATEST_CHECKPOINT: $_LATEST_CP"
   echo "--- END ARTIFACTS ---"
 fi
-# GBrain context recovery: search for project-relevant pages
-if command -v gbrain >/dev/null 2>&1 && [ -f "$HOME/.gbrain/config.json" ]; then
-  echo "--- GBRAIN CONTEXT ---"
-  gbrain search "\${SLUG:-unknown}" 2>/dev/null | head -8
-  gbrain search "session context checkpoint" 2>/dev/null | head -8
-  echo "--- END GBRAIN CONTEXT ---"
+# ICM context recovery: search for project-relevant context
+if command -v icm >/dev/null 2>&1; then
+  echo "--- ICM CONTEXT ---"
+  # Use topic slug matching: directory name from git-toplevel matches the project
+  # slug in all store topics (e.g. arch:gstack, state:gstack). recall-project
+  # uses the git remote URL which may differ; we use recall <slug> directly.
+  _ICM_SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || echo "unknown")")
+  icm --db "$GSTACK_ICM_DB" recall "$_ICM_SLUG" --limit 8 2>/dev/null
+  echo "--- END ICM CONTEXT ---"
 fi
 \`\`\`
 
-If artifacts are listed, read the newest useful one. If \`LAST_SESSION\` or \`LATEST_CHECKPOINT\` appears, give a 2-sentence welcome back summary. If GBRAIN CONTEXT pages are found, read the most relevant one to recover cross-session knowledge. If \`RECENT_PATTERN\` clearly implies a next skill, suggest it once. If no artifacts or gbrain pages are found, continue without context.`;
+If artifacts are listed, read the newest useful one. If \`LAST_SESSION\` or \`LATEST_CHECKPOINT\` appears, give a 2-sentence welcome back summary. If ICM context is found, read it to recover cross-session knowledge. If \`RECENT_PATTERN\` clearly implies a next skill, suggest it once. If no artifacts or ICM context is found, continue without context.`;
 }

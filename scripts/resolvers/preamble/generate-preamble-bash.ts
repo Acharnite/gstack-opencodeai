@@ -18,7 +18,8 @@ GSTACK_DESIGN="$GSTACK_ROOT/design/dist"
 \`\`\`bash
 ${runtimeRoot}_UPD=$(${ctx.paths.binDir}/gstack-update-check 2>/dev/null || ${ctx.paths.localSkillRoot}/bin/gstack-update-check 2>/dev/null || true)
 [ -n "$_UPD" ] && echo "$_UPD" || true
-mkdir -p ~/.gstack/sessions
+mkdir -p ~/.gstack/sessions ~/.gstack/icm
+export GSTACK_ICM_DB="$HOME/.gstack/icm/memories.db"
 touch ~/.gstack/sessions/"$PPID"
 _SESSIONS=$(find ~/.gstack/sessions -mmin -120 -type f 2>/dev/null | wc -l | tr -d ' ')
 find ~/.gstack/sessions -mmin +120 -type f -exec rm {} + 2>/dev/null || true
