@@ -20,7 +20,8 @@ GSTACK_BROWSE="$GSTACK_ROOT/browse/dist"
 GSTACK_DESIGN="$GSTACK_ROOT/design/dist"
 _UPD=$($GSTACK_BIN/gstack-update-check 2>/dev/null || .opencode/skills/gstack/bin/gstack-update-check 2>/dev/null || true)
 [ -n "$_UPD" ] && echo "$_UPD" || true
-mkdir -p ~/.gstack/sessions
+mkdir -p ~/.gstack/sessions ~/.gstack/icm
+export GSTACK_ICM_DB="$HOME/.gstack/icm/memories.db"
 touch ~/.gstack/sessions/"$PPID"
 _SESSIONS=$(find ~/.gstack/sessions -mmin -120 -type f 2>/dev/null | wc -l | tr -d ' ')
 find ~/.gstack/sessions -mmin +120 -type f -exec rm {} + 2>/dev/null || true
@@ -279,32 +280,17 @@ fi
 _BRAIN_SYNC_BIN="$GSTACK_BIN/gstack-brain-sync"
 _BRAIN_CONFIG_BIN="$GSTACK_BIN/gstack-config"
 
-# /sync-gbrain context-load: teach the agent to use gbrain when it's available.
-# Per-worktree pin: post-spike redesign uses kubectl-style `.gbrain-source` in the
-# git toplevel to scope queries. Look for the pin in the worktree (not a global
-# state file) so that opening worktree B without a pin doesn't claim "indexed"
-# just because worktree A was synced. Empty string when gbrain is not
-# configured (zero context cost for non-gbrain users).
-_GBRAIN_CONFIG="$HOME/.gbrain/config.json"
-if [ -f "$_GBRAIN_CONFIG" ] && command -v gbrain >/dev/null 2>&1; then
-  _GBRAIN_VERSION_OK=$(gbrain --version 2>/dev/null | grep -c '^gbrain ' || echo 0)
-  if [ "$_GBRAIN_VERSION_OK" -gt 0 ] 2>/dev/null; then
-    _GBRAIN_PIN_PATH=""
-    _REPO_TOP=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
-    if [ -n "$_REPO_TOP" ] && [ -f "$_REPO_TOP/.gbrain-source" ]; then
-      _GBRAIN_PIN_PATH="$_REPO_TOP/.gbrain-source"
-    fi
-    if [ -n "$_GBRAIN_PIN_PATH" ]; then
-      echo "GBrain configured. Prefer \`gbrain search\`/\`gbrain query\` over Grep for"
-      echo "semantic questions; use \`gbrain code-def\`/\`code-refs\`/\`code-callers\` for"
-      echo "symbol-aware code lookup. See \"## GBrain Search Guidance\" in AGENTS.md."
-      echo "Run /sync-gbrain to refresh."
-    else
-      echo "GBrain configured but this worktree isn't pinned yet. Run \`/sync-gbrain --full\`"
-      echo "before relying on \`gbrain search\` for code questions in this worktree."
-      echo "Falls back to Grep until pinned."
-    fi
+# ICM health check: show memory count and memoir list if the gstack DB exists.
+# This replaces the earlier gbrain detection block.
+if [ -n "$GSTACK_ICM_DB" ] && [ -f "$GSTACK_ICM_DB" ] && command -v icm >/dev/null 2>&1; then
+  echo "ICM_HEALTH: database found at $GSTACK_ICM_DB"
+  _ICM_MEMOIR_COUNT=$(icm --db "$GSTACK_ICM_DB" memoir list 2>/dev/null | grep -c '^[' || echo 0)
+  if [ "$_ICM_MEMOIR_COUNT" -gt 0 ] 2>/dev/null; then
+    echo "ICM_MEMOIRS: $_ICM_MEMOIR_COUNT available"
+    icm --db "$GSTACK_ICM_DB" memoir list 2>/dev/null | head -5
   fi
+else
+  : # No ICM DB yet — first run, proceed silently
 fi
 
 _BRAIN_SYNC_MODE=$("$_BRAIN_CONFIG_BIN" get artifacts_sync_mode 2>/dev/null || echo off)

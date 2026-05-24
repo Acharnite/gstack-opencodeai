@@ -23,7 +23,8 @@ GSTACK_BROWSE="$GSTACK_ROOT/browse/dist"
 GSTACK_DESIGN="$GSTACK_ROOT/design/dist"
 _UPD=$($GSTACK_BIN/gstack-update-check 2>/dev/null || .opencode/skills/gstack/bin/gstack-update-check 2>/dev/null || true)
 [ -n "$_UPD" ] && echo "$_UPD" || true
-mkdir -p ~/.gstack/sessions
+mkdir -p ~/.gstack/sessions ~/.gstack/icm
+export GSTACK_ICM_DB="$HOME/.gstack/icm/memories.db"
 touch ~/.gstack/sessions/"$PPID"
 _SESSIONS=$(find ~/.gstack/sessions -mmin -120 -type f 2>/dev/null | wc -l | tr -d ' ')
 find ~/.gstack/sessions -mmin +120 -type f -exec rm {} + 2>/dev/null || true
@@ -362,32 +363,17 @@ fi
 _BRAIN_SYNC_BIN="$GSTACK_BIN/gstack-brain-sync"
 _BRAIN_CONFIG_BIN="$GSTACK_BIN/gstack-config"
 
-# /sync-gbrain context-load: teach the agent to use gbrain when it's available.
-# Per-worktree pin: post-spike redesign uses kubectl-style `.gbrain-source` in the
-# git toplevel to scope queries. Look for the pin in the worktree (not a global
-# state file) so that opening worktree B without a pin doesn't claim "indexed"
-# just because worktree A was synced. Empty string when gbrain is not
-# configured (zero context cost for non-gbrain users).
-_GBRAIN_CONFIG="$HOME/.gbrain/config.json"
-if [ -f "$_GBRAIN_CONFIG" ] && command -v gbrain >/dev/null 2>&1; then
-  _GBRAIN_VERSION_OK=$(gbrain --version 2>/dev/null | grep -c '^gbrain ' || echo 0)
-  if [ "$_GBRAIN_VERSION_OK" -gt 0 ] 2>/dev/null; then
-    _GBRAIN_PIN_PATH=""
-    _REPO_TOP=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
-    if [ -n "$_REPO_TOP" ] && [ -f "$_REPO_TOP/.gbrain-source" ]; then
-      _GBRAIN_PIN_PATH="$_REPO_TOP/.gbrain-source"
-    fi
-    if [ -n "$_GBRAIN_PIN_PATH" ]; then
-      echo "GBrain configured. Prefer \`gbrain search\`/\`gbrain query\` over Grep for"
-      echo "semantic questions; use \`gbrain code-def\`/\`code-refs\`/\`code-callers\` for"
-      echo "symbol-aware code lookup. See \"## GBrain Search Guidance\" in AGENTS.md."
-      echo "Run /sync-gbrain to refresh."
-    else
-      echo "GBrain configured but this worktree isn't pinned yet. Run \`/sync-gbrain --full\`"
-      echo "before relying on \`gbrain search\` for code questions in this worktree."
-      echo "Falls back to Grep until pinned."
-    fi
+# ICM health check: show memory count and memoir list if the gstack DB exists.
+# This replaces the earlier gbrain detection block.
+if [ -n "$GSTACK_ICM_DB" ] && [ -f "$GSTACK_ICM_DB" ] && command -v icm >/dev/null 2>&1; then
+  echo "ICM_HEALTH: database found at $GSTACK_ICM_DB"
+  _ICM_MEMOIR_COUNT=$(icm --db "$GSTACK_ICM_DB" memoir list 2>/dev/null | grep -c '^[' || echo 0)
+  if [ "$_ICM_MEMOIR_COUNT" -gt 0 ] 2>/dev/null; then
+    echo "ICM_MEMOIRS: $_ICM_MEMOIR_COUNT available"
+    icm --db "$GSTACK_ICM_DB" memoir list 2>/dev/null | head -5
   fi
+else
+  : # No ICM DB yet — first run, proceed silently
 fi
 
 _BRAIN_SYNC_MODE=$("$_BRAIN_CONFIG_BIN" get artifacts_sync_mode 2>/dev/null || echo off)
@@ -517,16 +503,19 @@ if [ -d "$_PROJ" ]; then
   [ -n "$_LATEST_CP" ] && echo "LATEST_CHECKPOINT: $_LATEST_CP"
   echo "--- END ARTIFACTS ---"
 fi
-# GBrain context recovery: search for project-relevant pages
-if command -v gbrain >/dev/null 2>&1 && [ -f "$HOME/.gbrain/config.json" ]; then
-  echo "--- GBRAIN CONTEXT ---"
-  gbrain search "${SLUG:-unknown}" 2>/dev/null | head -8
-  gbrain search "session context checkpoint" 2>/dev/null | head -8
-  echo "--- END GBRAIN CONTEXT ---"
+# ICM context recovery: search for project-relevant context
+if command -v icm >/dev/null 2>&1; then
+  echo "--- ICM CONTEXT ---"
+  # Use topic slug matching: directory name from git-toplevel matches the project
+  # slug in all store topics (e.g. arch:gstack, state:gstack). recall-project
+  # uses the git remote URL which may differ; we use recall <slug> directly.
+  _ICM_SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || echo "unknown")")
+  icm --db "$GSTACK_ICM_DB" recall "$_ICM_SLUG" --limit 8 2>/dev/null
+  echo "--- END ICM CONTEXT ---"
 fi
 ```
 
-If artifacts are listed, read the newest useful one. If `LAST_SESSION` or `LATEST_CHECKPOINT` appears, give a 2-sentence welcome back summary. If GBRAIN CONTEXT pages are found, read the most relevant one to recover cross-session knowledge. If `RECENT_PATTERN` clearly implies a next skill, suggest it once. If no artifacts or gbrain pages are found, continue without context.
+If artifacts are listed, read the newest useful one. If `LAST_SESSION` or `LATEST_CHECKPOINT` appears, give a 2-sentence welcome back summary. If ICM context is found, read it to recover cross-session knowledge. If `RECENT_PATTERN` clearly implies a next skill, suggest it once. If no artifacts or ICM context is found, continue without context.
 
 ## Writing Style (skip entirely if `EXPLAIN_LEVEL: terse` appears in the preamble echo OR the user's current message explicitly requests terse / no-explanations output)
 
@@ -882,21 +871,19 @@ If `DESIGN_NOT_AVAILABLE`: Phase 5 falls back to the HTML preview page (still go
 
 ---
 
-## Brain Context Load
+## ICM Context Load
 
-Before starting this skill, search your brain for relevant context:
+Before starting this skill, search ICM for relevant context:
 
 1. Extract 2-4 keywords from the user's request (nouns, error names, file paths, technical terms).
-   Search GBrain: `gbrain search "keyword1 keyword2"`
-   Example: for "the login page is broken after deploy", search `gbrain search "login broken deploy"`
-   Search returns lines like: `[slug] Title (score: 0.85) - first line of content...`
+   Search ICM: `icm --db "$GSTACK_ICM_DB" recall "keyword1 keyword2"`
+   Example: for "the login page is broken after deploy", search `icm --db "$GSTACK_ICM_DB" recall "login broken deploy"`
 2. If few results, broaden to the single most specific keyword and search again.
-3. For each result page, read it: `gbrain get "<page_slug>"`
-   Read the top 3 pages for context.
-4. Use this brain context to inform your analysis.
+3. Also run `icm --db "$GSTACK_ICM_DB" wake-up --project "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || echo "unknown")")` to get a compact critical-facts pack for this project.
+4. Use this context to inform your analysis.
 
-If GBrain is not available or returns no results, proceed without brain context.
-Any non-zero exit code from gbrain commands should be treated as a transient failure.
+If ICM is not available or returns no results, proceed without context.
+Any non-zero exit code from `icm` should be treated as a transient failure.
 
 ## Prior Learnings
 
@@ -1540,40 +1527,23 @@ staleness detection: if those files are later deleted, the learning can be flagg
 **Only log genuine discoveries.** Don't log obvious things. Don't log things the user
 already knows. A good test: would this insight save time in a future session? If yes, log it.
 
-## Save Results to Brain
+## Save Results to ICM
 
-After completing this skill, persist the results to your brain for future reference:
+After completing this skill, persist the results to ICM for future reference:
 
-Save the design system as a brain page:
+Save the design system decisions to ICM:
 ```bash
-_SLUG="design-system-$(date +%Y%m%d)-${SLUG:-unknown}"
-gbrain put "$_SLUG" <<GBEOF
----
-title: "Design System: <project name>"
-tags: [design-system, <project-slug>]
----
-<design decisions in markdown>
-GBEOF
+icm --db "$GSTACK_ICM_DB" store -t "arch:$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")" \
+  -c "Design System: <project name> — <key decision>" \
+  -i high \
+  -k "design-system,<project-slug>"
 ```
 
-After saving the page, extract and enrich mentioned entities: for each actual person name or company/organization name found in the output, `gbrain search "<entity name>"` to check if a page exists. If not, create a stub page:
-```bash
-ENTITY_SLUG=$(echo "<Person or Company Name>" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' '-')
-gbrain put "$ENTITY_SLUG" <<GBEOF
----
-title: "<Person or Company Name>"
-tags: [entity, person]
----
-Stub page. Mentioned in <skill name> output.
-GBEOF
-```
-Only extract actual person names and company/organization names. Skip product names, section headings, technical terms, and file paths.
+After saving the key finding, also consider extracting person/company names mentioned in the output and saving them as separate entries with `-k "entity,person"`. Skip product names, section headings, technical terms, and file paths.
 
-Throttle errors appear as: exit code 1 with stderr containing "throttle", "rate limit", "capacity", or "busy". If GBrain returns a throttle or rate-limit error on any save operation, defer the save and move on. The brain is busy — the content is not lost, just not persisted this run. Any other non-zero exit code should also be treated as a transient failure.
+If `icm` returns a non-zero exit code, treat it as a transient failure and move on.
 
-Add backlinks to related brain pages if they exist. If GBrain is not available, skip this step.
-
-After brain operations complete, note in your completion output: how many pages were found in the initial search, how many entities were enriched, and whether any operations were throttled. This helps the user see brain utilization over time.
+Note in your completion output: how many ICM memories were written. This helps the user see memory utilization over time.
 
 ## Important Rules
 
